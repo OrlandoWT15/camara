@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Seleccionar Cámara</title>
+</head>
+<body>
+    <label for="cameraSelect">Seleccionar Cámara:</label>
+    <select id="cameraSelect"></select>
+    
+    <button id="startCamera">Iniciar Cámara</button>
+    <video id="video" autoplay style="display:none;"></video>
+    <button id="capture" style="display:none;">Capturar</button>
+    <canvas id="canvas" style="display:none;"></canvas>
+    <img id="photo" alt="Foto Capturada" />
+    <button id="upload" style="display:none;">Subir Foto</button>
+
+    <script>
+        let stream = null;
+        let selectedDeviceId = null;
+
+        // 🔹 Obtener la lista de cámaras disponibles
+        async function getCameras() {
+            try {
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                const cameras = devices.filter(device => device.kind === "videoinput");
+
+                const select = document.getElementById("cameraSelect");
+                select.innerHTML = ""; // Limpiar opciones
+
+                cameras.forEach((camera, index) => {
+                    let option = document.createElement("option");
+                    option.value = camera.deviceId;
+                    option.text = camera.label || `Cámara ${index + 1}`;
+                    select.appendChild(option);
+                });
+
+                if (cameras.length > 0) {
+                    selectedDeviceId = cameras[0].deviceId; // Seleccionar la primera cámara por defecto
+                }
+            } catch (error) {
+                console.error("Error al obtener cámaras:", error);
+            }
+        }
+
+        // 🔹 Detectar cambios en la selección de cámara
+        document.getElementById("cameraSelect").addEventListener("change", function() {
+            selectedDeviceId = this.value;
+        });
+
+        // 🔹 Iniciar la cámara seleccionada
+        document.getElementById("startCamera").addEventListener("click", async function() {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop()); // Apagar la cámara anterior
+            }
+
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: { deviceId: { exact: selectedDeviceId } }
+                });
+
+                let video = document.getElementById("video");
+                video.srcObject = stream;
+                video.style.display = "block";
+                document.getElementById("capture").style.display = "block";
+            } catch (error) {
+                console.error("Error al acceder a la cámara:", error);
+            }
+        });
+
+        // 📸 Capturar foto y apagar la cámara
+        document.getElementById("capture").addEventListener("click", function() {
+            let video = document.getElementById("video");
+            let canvas = document.getElementById("canvas");
+            let context = canvas.getContext("2d");
+
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            let dataUrl = canvas.toDataURL("image/png");
+            document.getElementById("photo").src = dataUrl;
+
+            // 🚀 Apagar la cámara
+            if (stream) {
+                let tracks = stream.getTracks();
+                tracks.forEach(track => track.stop());
+                video.style.display = "none";
+                document.getElementById("capture").style.display = "none";
+                document.getElementById("upload").style.display = "block";
+            }
+        });
+
+        // 🚀 Cargar lista de cámaras al iniciar
+        getCameras();
+    </script>
+</body>
+</html>
