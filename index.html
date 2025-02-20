@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cámara y Upload</title>
+</head>
+<body>
+    <button id="startCamera">Iniciar Cámara</button>
+    <video id="video" autoplay style="display:none;"></video>
+    <button id="capture" style="display:none;">Capturar</button>
+    <canvas id="canvas" style="display:none;"></canvas>
+    <img id="photo" src="" alt="Foto Capturada"/>
+    <button id="upload" style="display:none;">Subir Foto</button>
+
+    <script>
+        let stream = null; // Guardar la referencia del stream
+
+        // 🔹 Iniciar la cámara cuando se presiona el botón
+        document.getElementById("startCamera").addEventListener("click", function() {
+            navigator.mediaDevices.getUserMedia({ video: true })
+                .then(mediaStream => {
+                    stream = mediaStream; // Guardar el stream para detenerlo luego
+                    let video = document.getElementById("video");
+                    video.srcObject = mediaStream;
+                    video.style.display = "block"; // Mostrar el video
+                    document.getElementById("capture").style.display = "block"; // Mostrar botón de captura
+                    this.style.display = "none"; // Ocultar el botón de iniciar
+                })
+                .catch(err => console.error("Error al acceder a la cámara: ", err));
+        });
+
+        // 📸 Capturar foto y detener cámara
+        document.getElementById("capture").addEventListener("click", function() {
+            let video = document.getElementById("video");
+            let canvas = document.getElementById("canvas");
+            let context = canvas.getContext("2d");
+
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            let dataUrl = canvas.toDataURL("image/png");
+            document.getElementById("photo").src = dataUrl;
+            document.getElementById("photo").style.display = "block";
+
+            // 🚀 Detener la cámara
+            if (stream) {
+                let tracks = stream.getTracks();
+                tracks.forEach(track => track.stop()); // Detener cada track de video
+                video.style.display = "none"; // Ocultar el video
+                document.getElementById("capture").style.display = "none"; // Ocultar el botón de captura
+                document.getElementById("upload").style.display = "block"; // Mostrar botón de subir
+                document.getElementById("startCamera").style.display = "block"; // Mostrar botón de iniciar
+            }
+        });
+
+        // 🚀 Subir imagen
+        document.getElementById("upload").addEventListener("click", function() {
+            let canvas = document.getElementById("canvas");
+            canvas.toBlob(blob => {
+                let formData = new FormData();
+                formData.append("file", blob, "captura.png");
+
+                fetch("/Home/Upload", {
+                    method: "POST",
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => console.log("Imagen subida con éxito:", data))
+                .catch(error => console.error("Error al subir imagen:", error));
+            }, "image/png");
+        });
+    </script>
+</body>
+</html>
